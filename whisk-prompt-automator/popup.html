@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whisk Prompt Automator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f8f9fa;
+      color: #202124;
+      width: 380px;
+      min-height: 200px;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #4285f4;
+      color: white;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-icon {
+      width: 28px;
+      height: 28px;
+      background: white;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .header p {
+      font-size: 11px;
+      opacity: 0.85;
+      margin-top: 1px;
+    }
+
+    /* ── Content ── */
+    .content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── File Upload ── */
+    .upload-area {
+      border: 2px dashed #dadce0;
+      border-radius: 8px;
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: white;
+    }
+
+    .upload-area:hover,
+    .upload-area.dragover {
+      border-color: #4285f4;
+      background: #e8f0fe;
+    }
+
+    .upload-area.has-file {
+      border-color: #34a853;
+      background: #e6f4ea;
+    }
+
+    .upload-icon {
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+
+    .upload-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #4285f4;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .upload-hint {
+      font-size: 11px;
+      color: #5f6368;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* ── Prompts Found badge ── */
+    .prompts-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .prompts-badge-label {
+      font-size: 13px;
+      color: #5f6368;
+    }
+
+    .prompts-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: #5f6368;
+    }
+
+    .prompts-count.found {
+      color: #34a853;
+    }
+
+    .prompts-count.none {
+      color: #ea4335;
+    }
+
+    /* ── Settings Row ── */
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .settings-row label {
+      flex: 1;
+      font-size: 13px;
+      color: #202124;
+    }
+
+    .settings-row label small {
+      display: block;
+      font-size: 11px;
+      color: #5f6368;
+    }
+
+    .settings-row input[type="number"] {
+      width: 70px;
+      padding: 5px 8px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+      color: #202124;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .settings-row input[type="number"]:focus {
+      border-color: #4285f4;
+    }
+
+    /* ── Checkbox setting ── */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #4285f4;
+      cursor: pointer;
+    }
+
+    .checkbox-row label {
+      font-size: 13px;
+      color: #202124;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .checkbox-row label small {
+      display: block;
+      font-size: 11px;
+      color: #5f6368;
+    }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-start {
+      background: #4285f4;
+      color: white;
+    }
+
+    .btn-start:hover:not(:disabled) {
+      background: #3367d6;
+    }
+
+    .btn-stop {
+      background: #ea4335;
+      color: white;
+      display: none;
+    }
+
+    .btn-stop:hover {
+      background: #c5221f;
+    }
+
+    /* ── Progress ── */
+    .progress-section {
+      display: none;
+      background: white;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    .progress-fraction {
+      font-size: 12px;
+      font-weight: 600;
+      color: #4285f4;
+    }
+
+    .progress-bar-bg {
+      height: 6px;
+      background: #e8eaed;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: #4285f4;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    .progress-message {
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    /* ── Countdown ── */
+    .countdown {
+      font-size: 12px;
+      color: #fbbc04;
+      font-weight: 600;
+      display: none;
+    }
+
+    /* ── Status message ── */
+    .status-msg {
+      display: none;
+      font-size: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .status-msg.info {
+      background: #e8f0fe;
+      color: #1a73e8;
+      border-left: 3px solid #4285f4;
+    }
+
+    .status-msg.success {
+      background: #e6f4ea;
+      color: #137333;
+      border-left: 3px solid #34a853;
+    }
+
+    .status-msg.error {
+      background: #fce8e6;
+      color: #c5221f;
+      border-left: 3px solid #ea4335;
+    }
+
+    .status-msg.warning {
+      background: #fef7e0;
+      color: #b06000;
+      border-left: 3px solid #fbbc04;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 8px 16px 12px;
+      text-align: center;
+      font-size: 11px;
+      color: #9aa0a6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">&#x26A1;</div>
+    <div>
+      <h1>Whisk Prompt Automator</h1>
+      <p>Auto-paste image prompts into Google Whisk</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- File Upload -->
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">&#x1F4C4;</div>
+      <span class="upload-label">Click or drag &amp; drop your prompt file</span>
+      <span class="upload-hint" id="uploadHint">Supports .txt files with JSON image prompts</span>
+      <input type="file" id="fileInput" accept=".txt,.json,.md" />
+    </div>
+
+    <!-- Prompts Found -->
+    <div class="prompts-badge">
+      <span class="prompts-badge-label">Prompts detected in file</span>
+      <span class="prompts-count none" id="promptsCount">—</span>
+    </div>
+
+    <!-- Delay Setting -->
+    <div class="settings-row">
+      <label for="delayInput">
+        Delay between prompts
+        <small>Seconds to wait after each generation</small>
+      </label>
+      <input type="number" id="delayInput" value="30" min="5" max="300" />
+    </div>
+
+    <!-- Auto-click Generate -->
+    <div class="checkbox-row">
+      <input type="checkbox" id="autoClickGenerate" checked />
+      <label for="autoClickGenerate">
+        Auto-click Generate button
+        <small>After pasting, automatically click the Whisk Generate button</small>
+      </label>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="btn-row">
+      <button class="btn btn-start" id="startBtn" disabled>&#x25B6; Start Automation</button>
+      <button class="btn btn-stop" id="stopBtn">&#x25A0; Stop</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-section" id="progressSection">
+      <div class="progress-header">
+        <span class="progress-label" id="progressMessage">Waiting...</span>
+        <span class="progress-fraction" id="progressFraction">0 / 0</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBarFill"></div>
+      </div>
+      <span class="countdown" id="countdown"></span>
+    </div>
+
+    <!-- Status Message -->
+    <div class="status-msg" id="statusMsg"></div>
+
+  </div>
+
+  <div class="footer">
+    Make sure Google Whisk is open in a tab before starting
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
