@@ -229,8 +229,11 @@ const GENERATE_SELECTORS = [
   'button[aria-label*="create"   i]',
   'button[aria-label*="remix"    i]',
   'button[aria-label*="run"      i]',
+  'button[aria-label*="submit"   i]',
+  'button[type="submit"]',
   '[role="button"][aria-label*="generate" i]',
   '[role="button"][aria-label*="create"   i]',
+  '[role="button"][aria-label*="submit"   i]',
 ];
 
 const GENERATE_TEXT_KEYWORDS = ['generate', 'create', 'remix', 'run'];
@@ -262,20 +265,58 @@ function clickGenerateButton() {
     }
   }
 
-  // 3. Last resort — press Enter in the input field
+  // 3. Find the submit/arrow button near the prompt input.
+  //    Whisk uses an icon-only → button with no text or aria-label, so
+  //    text/attribute searches miss it. The button is always the last
+  //    non-disabled button in the same container as the textarea.
   const input = findPromptInput();
   if (input) {
+    const btn = findLastButtonNearInput(input);
+    if (btn) {
+      btn.click();
+      return true;
+    }
+  }
+
+  // 4. Last resort — press Enter in the input field
+  if (input) {
     input.dispatchEvent(new KeyboardEvent('keydown', {
-      key:      'Enter',
-      code:     'Enter',
-      keyCode:  13,
-      bubbles:  true,
+      key:       'Enter',
+      code:      'Enter',
+      keyCode:   13,
+      bubbles:   true,
       cancelable: true
     }));
-    return true; // treated as attempted
+    return true;
   }
 
   return false;
+}
+
+/**
+ * Walk up from the prompt input, looking for a container that holds
+ * a small set of buttons (≤ 12). Return the last enabled one — in
+ * Whisk's layout that is always the → (execute) button.
+ * Works for both regular DOM and shadow-root containers.
+ */
+function findLastButtonNearInput(inputEl) {
+  let container = inputEl.parentElement;
+  // getRootNode() gives the ShadowRoot when input lives in one
+  const root = inputEl.getRootNode();
+
+  for (let depth = 0; depth < 8 && container && container !== root; depth++) {
+    const btns = Array.from(
+      container.querySelectorAll('button, [role="button"]')
+    ).filter(b => !b.disabled && isUsable(b));
+
+    // A container with 1–12 buttons is the toolbar row we want.
+    // Skip huge containers (the whole page body) to avoid mis-clicks.
+    if (btns.length >= 1 && btns.length <= 12) {
+      return btns[btns.length - 1];
+    }
+    container = container.parentElement;
+  }
+  return null;
 }
 
 function collectShadowButtons(root) {
