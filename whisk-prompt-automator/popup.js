@@ -64,12 +64,17 @@ function saveSettings() {
 }
 
 function restoreSettings() {
-  chrome.storage.local.get(['delay', 'autoClick'], (result) => {
+  chrome.storage.local.get(['delay', 'autoClick', 'prompts', 'fileName'], (result) => {
     if (result.delay !== undefined) {
       document.getElementById('delayInput').value = result.delay;
     }
     if (result.autoClick !== undefined) {
       document.getElementById('autoClickGenerate').checked = result.autoClick;
+    }
+    // Restore previously loaded prompts so closing the popup doesn't lose them
+    if (result.prompts && result.prompts.length > 0) {
+      extractedPrompts = result.prompts;
+      updateFileUI(result.fileName || 'Previously loaded file', result.prompts.length);
     }
   });
 }
@@ -80,6 +85,8 @@ function readFile(file) {
   reader.onload = (e) => {
     const text = e.target.result;
     extractedPrompts = extractJsonBlocks(text);
+    // Persist so reopening the popup doesn't lose the loaded file
+    chrome.storage.local.set({ prompts: extractedPrompts, fileName: file.name });
     updateFileUI(file.name, extractedPrompts.length);
   };
   reader.onerror = () => showStatus('Could not read file.', 'error');
@@ -87,9 +94,11 @@ function readFile(file) {
 }
 
 /**
- * Extract all top-level JSON objects from freeform text.
- * Only captures content that starts with '{' and ends with matching '}'.
- * Text before/after (like "Image Prompt 3:") is ignored.
+ * Extract all top-level { } blocks from freeform text.
+ * Uses brace-depth tracking only — no strict JSON.parse() validation,
+ * so prompts with trailing commas, single quotes, or minor formatting
+ * quirks are still captured.
+ * Text between blocks (like "Image Prompt 3:") is ignored.
  */
 function extractJsonBlocks(text) {
   const blocks = [];
@@ -101,10 +110,10 @@ function extractJsonBlocks(text) {
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
 
-    if (escapeNext)           { escapeNext = false; continue; }
+    if (escapeNext)              { escapeNext = false; continue; }
     if (ch === '\\' && inString) { escapeNext = true;  continue; }
-    if (ch === '"')           { inString = !inString;  continue; }
-    if (inString)             { continue; }
+    if (ch === '"')              { inString = !inString; continue; }
+    if (inString)                { continue; }
 
     if (ch === '{') {
       if (depth === 0) start = i;
@@ -112,13 +121,7 @@ function extractJsonBlocks(text) {
     } else if (ch === '}') {
       depth--;
       if (depth === 0 && start !== -1) {
-        const candidate = text.substring(start, i + 1);
-        try {
-          JSON.parse(candidate); // validation — only accept well-formed JSON
-          blocks.push(candidate);
-        } catch (_) {
-          // malformed block, skip
-        }
+        blocks.push(text.substring(start, i + 1));
         start = -1;
       }
     }
